@@ -12,6 +12,11 @@
 #     name: python3
 # ---
 
+# + [markdown] toc=true
+# <h1>Table of Contents<span class="tocSkip"></span></h1>
+# <div class="toc"><ul class="toc-item"><li><span><a href="#Programming-in-Python" data-toc-modified-id="Programming-in-Python-1"><span class="toc-item-num">1&nbsp;&nbsp;</span>Programming in Python</a></span><ul class="toc-item"><li><span><a href="#Exam:-February-22,-2023" data-toc-modified-id="Exam:-February-22,-2023-1.1"><span class="toc-item-num">1.1&nbsp;&nbsp;</span>Exam: February 22, 2023</a></span><ul class="toc-item"><li><span><a href="#Exercise-1-(max-4-points)" data-toc-modified-id="Exercise-1-(max-4-points)-1.1.1"><span class="toc-item-num">1.1.1&nbsp;&nbsp;</span>Exercise 1 (max 4 points)</a></span></li><li><span><a href="#Exercise-2-(max-2-points)" data-toc-modified-id="Exercise-2-(max-2-points)-1.1.2"><span class="toc-item-num">1.1.2&nbsp;&nbsp;</span>Exercise 2 (max 2 points)</a></span></li><li><span><a href="#Exercise-3-(max-7-points)" data-toc-modified-id="Exercise-3-(max-7-points)-1.1.3"><span class="toc-item-num">1.1.3&nbsp;&nbsp;</span>Exercise 3 (max 7 points)</a></span></li><li><span><a href="#Exercise-4-(max-4-points)" data-toc-modified-id="Exercise-4-(max-4-points)-1.1.4"><span class="toc-item-num">1.1.4&nbsp;&nbsp;</span>Exercise 4 (max 4 points)</a></span></li><li><span><a href="#Exercise-5-(max-2-points)" data-toc-modified-id="Exercise-5-(max-2-points)-1.1.5"><span class="toc-item-num">1.1.5&nbsp;&nbsp;</span>Exercise 5 (max 2 points)</a></span></li><li><span><a href="#Exercise-6-(max-3-points)" data-toc-modified-id="Exercise-6-(max-3-points)-1.1.6"><span class="toc-item-num">1.1.6&nbsp;&nbsp;</span>Exercise 6 (max 3 points)</a></span></li><li><span><a href="#Exercise-7-(max-5-points)" data-toc-modified-id="Exercise-7-(max-5-points)-1.1.7"><span class="toc-item-num">1.1.7&nbsp;&nbsp;</span>Exercise 7 (max 5 points)</a></span></li><li><span><a href="#Exercise-8-(max-6-points)" data-toc-modified-id="Exercise-8-(max-6-points)-1.1.8"><span class="toc-item-num">1.1.8&nbsp;&nbsp;</span>Exercise 8 (max 6 points)</a></span></li></ul></li></ul></li></ul></div>
+# -
+
 # # Programming in Python
 # ## Exam: February 22, 2023
 #
@@ -50,14 +55,21 @@ import arviz as az   # type: ignore
 # Read the data in a pandas DataFrame. Be sure to use `id` as the index and that the column `date` has `pd.datetime64[ns]`.
 #
 
-pass
+prey = pd.read_csv('prey_winter.csv', sep=';', index_col='id', parse_dates=['date'], dayfirst=True)
+
+assert prey.dtypes['date'] == 'datetime64[ns]' 
+
+prey.head()
 
 # ### Exercise 2 (max 2 points)
 #
 # Add a column period with the numbers 1, 2, 3 if, respectively, the row refers to `project_period` NWAI, NWAII, NWAIII.
 #
 
-pass
+prey['period'] = prey['project_period'].str.count('I')
+
+prey.head()
+
 
 # ### Exercise 3 (max 7 points)
 #
@@ -65,31 +77,72 @@ pass
 #
 # To get the full marks, you should declare correctly the type hints and add a test within a doctest string.
 
-pass
+def date_check(project_period: str, date: pd.Timestamp) -> bool:
+    """Check if date falls in project_period.
+    
+    >>> date_check('NWAIII', pd.to_datetime('1.1.2015'))
+    True
+    
+    >>> date_check('NWAIII', pd.to_datetime('1.1.1989'))
+    False
+    
+    """
+    
+    if project_period == 'NWAI':
+        min_d, max_d = 1983, 1985
+    elif project_period == 'NWAII':
+        min_d, max_d = 1997, 2001
+    elif project_period == 'NWAIII':
+        min_d, max_d = 2011, 2017
+    else:
+        assert False, 'Wrong project_period!'
+    return min_d <= date.year <= max_d
+    
+
+
+import doctest
+doctest.testmod()
 
 # ### Exercise 4 (max 4 points)
 #
 # Use the function defined in Exercise 3 to assert that all the values in columns `date` are consistent with column `project_period`.
 
-pass
+assert prey.apply(lambda row: date_check(row['project_period'], row['date']), axis=1).all()
 
 # ### Exercise 5 (max 2 points)
 #
 # Print the median `elevation` for each species.
 
-pass
+prey.groupby('species')['elevation'].median()
 
 # ### Exercise 6 (max 3 points)
 #
 # Make a scatter plot of `elevation` vs. `slope`, using different color for each `habitat_type`.
 
-
+_ = prey.plot.scatter('elevation', 'slope', c='habitat_type', colormap='Accent')
 
 # ### Exercise 7 (max 5 points)
 #
 # Consider the animals with `habitat_type` 1 (forest). Consider them in ascending order of `elevation` and compute the  delta of elevation with respect the previous one (0, sea level, for the first). Draw these deltas vs. the elevation levels.
 
-pass
+# +
+forest = prey[prey['habitat_type'] == 1]
+sorted_forest = forest.sort_values(by='elevation')
+
+deltas = []
+for i, val in enumerate(sorted_forest['elevation']):
+    if i == 0:
+        deltas.append(val)
+    else:
+        deltas.append(val - sorted_forest['elevation'].iloc[i-1])
+
+# +
+fig, ax = plt.subplots()
+
+ax.scatter(sorted_forest['elevation'], deltas)
+ax.set_xlabel('elevation')
+_ = ax.set_ylabel('delta')
+# -
 
 # ### Exercise 8 (max 6 points)
 #
@@ -107,4 +160,16 @@ pass
 #
 #
 
-pass
+with pm.Model():
+    
+    a = pm.Normal('alpha', 0, 5)
+    b_e = pm.Normal('beta_e', 0, 5)
+    b_h = pm.Normal('beta_h', 0, 5)
+    s = pm.Exponential('sigma', 1)
+    
+    pm.Normal('slope', sigma=s, mu=a + b_e*prey['elevation'] + b_h*prey['habitat_type'], observed=prey['slope'])
+    
+    idata = pm.sample()
+    
+
+_ = az.plot_posterior(idata)
